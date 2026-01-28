@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -13,6 +13,12 @@ class Movie(BaseModel):
     title: str
     year: str
     actors: str   # legacy field (nieużywane w etapie 08, ale zostawiamy)
+
+class MovieUpdate(BaseModel):
+    title: str
+    year: str
+    actors: str
+
 
 class ActorIn(BaseModel):
     name: str
@@ -163,14 +169,13 @@ def add_movie(movie: Movie):
     db.close()
     return {"message": f"Movie with id = {movie_id} added successfully"}
 
-
 @app.put("/movies/{movie_id}")
-def update_movie(movie_id: int, params: dict[str, Any]):
+def update_movie(movie_id: int, params: MovieUpdate):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
         "UPDATE movies SET title = ?, year = ?, actors = ? WHERE id = ?",
-        (params["title"], params["year"], params["actors"], movie_id)
+        (params.title, params.year, params.actors, movie_id)
     )
     db.commit()
     updated = cursor.rowcount
@@ -180,6 +185,25 @@ def update_movie(movie_id: int, params: dict[str, Any]):
         return {"message": f"Movie with id = {movie_id} not found"}
 
     return {"message": f"Movie with id = {movie_id} updated successfully"}
+
+
+
+# @app.put("/movies/{movie_id}")
+# def update_movie(movie_id: int, params: dict[str, Any]):
+#     db = get_db()
+#     cursor = db.cursor()
+#     cursor.execute(
+#         "UPDATE movies SET title = ?, year = ?, actors = ? WHERE id = ?",
+#         (params["title"], params["year"], params["actors"], movie_id)
+#     )
+#     db.commit()
+#     updated = cursor.rowcount
+#     db.close()
+#
+#     if updated == 0:
+#         return {"message": f"Movie with id = {movie_id} not found"}
+#
+#     return {"message": f"Movie with id = {movie_id} updated successfully"}
 
 
 @app.delete("/movies/{movie_id}")
@@ -270,13 +294,32 @@ def assign_actor_to_movie(movie_id: int, actor_id: int):
     db = get_db()
     cursor = db.cursor()
 
-    cursor.execute(
-        "INSERT OR IGNORE INTO movie_actors (movie_id, actor_id) VALUES (?, ?)",
-        (movie_id, actor_id)
-    )
-    db.commit()
+    try:
+        cursor.execute(
+            "INSERT OR IGNORE INTO movie_actors (movie_id, actor_id) VALUES (?, ?)",
+            (movie_id, actor_id)
+        )
+        db.commit()
+    except sqlite3.IntegrityError:
+        db.close()
+        raise HTTPException(status_code=404, detail="Movie or Actor not found")
+
     db.close()
     return {"message": "Actor assigned to movie"}
+
+
+# @app.post("/movies/{movie_id}/actors/{actor_id}")
+# def assign_actor_to_movie(movie_id: int, actor_id: int):
+#     db = get_db()
+#     cursor = db.cursor()
+#
+#     cursor.execute(
+#         "INSERT OR IGNORE INTO movie_actors (movie_id, actor_id) VALUES (?, ?)",
+#         (movie_id, actor_id)
+#     )
+#     db.commit()
+#     db.close()
+#     return {"message": "Actor assigned to movie"}
 
 
 @app.delete("/movies/{movie_id}/actors/{actor_id}")
