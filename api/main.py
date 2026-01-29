@@ -15,16 +15,18 @@ import sqlite3
 class Movie(BaseModel):
     title: str
     year: str
-    actors: str   # legacy field (nieużywane w etapie 08, ale zostawiamy)
+    description: str
+    actors: str  # legacy string field (może być pusty)
 
 class MovieUpdate(BaseModel):
     title: str
     year: str
+    description: str
     actors: str
-
 
 class ActorIn(BaseModel):
     name: str
+
 
 
 # =========================
@@ -57,8 +59,6 @@ def init_db():
     db = get_db()
     cursor = db.cursor()
 
-    # tabela movies MUSI już istnieć (Twój projekt)
-    # Dodajemy tabele dla etapu "Aktorzy"
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS actors (
@@ -66,6 +66,14 @@ def init_db():
         name TEXT NOT NULL UNIQUE
     )
     """)
+
+    # --- MIGRACJA: description w tabeli movies (jeśli brak) ---
+    cols = cursor.execute("PRAGMA table_info(movies)").fetchall()
+    col_names = {c[1] for c in cols}  # c[1] = nazwa kolumny
+
+    if "description" not in col_names:
+        cursor.execute("ALTER TABLE movies ADD COLUMN description TEXT NOT NULL DEFAULT ''")
+
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS movie_actors (
@@ -76,6 +84,7 @@ def init_db():
         FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE CASCADE
     )
     """)
+
 
     db.commit()
     db.close()
@@ -139,6 +148,7 @@ def get_movies():
             "id": m["id"],
             "title": m["title"],
             "year": m["year"],
+            "description": m["description"],
             "actors": [{"id": a["id"], "name": a["name"]} for a in actor_rows]
         })
 
@@ -159,7 +169,7 @@ def get_single_movie(movie_id: int):
         db.close()
         return {"message": "Movie not found"}
 
-    actors = cursor.execute("""
+    actor_rows = cursor.execute("""
         SELECT a.id, a.name
         FROM actors a
         JOIN movie_actors ma ON ma.actor_id = a.id
@@ -172,7 +182,8 @@ def get_single_movie(movie_id: int):
         "id": movie["id"],
         "title": movie["title"],
         "year": movie["year"],
-        "actors": [{"id": a["id"], "name": a["name"]} for a in actors]
+        "description": movie["description"],
+        "actors": [{"id": a["id"], "name": a["name"]} for a in actor_rows]
     }
 
 
@@ -181,21 +192,22 @@ def add_movie(movie: Movie):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "INSERT INTO movies (title, year, actors) VALUES (?, ?, ?)",
-        (movie.title, movie.year, movie.actors)
+        "INSERT INTO movies (title, year, description, actors) VALUES (?, ?, ?, ?)",
+        (movie.title, movie.year, movie.description, movie.actors)
     )
     db.commit()
     movie_id = cursor.lastrowid
     db.close()
     return {"message": f"Movie with id = {movie_id} added successfully"}
 
+
 @app.put("/movies/{movie_id}")
 def update_movie(movie_id: int, params: MovieUpdate):
     db = get_db()
     cursor = db.cursor()
     cursor.execute(
-        "UPDATE movies SET title = ?, year = ?, actors = ? WHERE id = ?",
-        (params.title, params.year, params.actors, movie_id)
+        "UPDATE movies SET title = ?, year = ?, description = ?, actors = ? WHERE id = ?",
+        (params.title, params.year, params.description, params.actors, movie_id)
     )
     db.commit()
     updated = cursor.rowcount
@@ -205,25 +217,6 @@ def update_movie(movie_id: int, params: MovieUpdate):
         return {"message": f"Movie with id = {movie_id} not found"}
 
     return {"message": f"Movie with id = {movie_id} updated successfully"}
-
-
-
-# @app.put("/movies/{movie_id}")
-# def update_movie(movie_id: int, params: dict[str, Any]):
-#     db = get_db()
-#     cursor = db.cursor()
-#     cursor.execute(
-#         "UPDATE movies SET title = ?, year = ?, actors = ? WHERE id = ?",
-#         (params["title"], params["year"], params["actors"], movie_id)
-#     )
-#     db.commit()
-#     updated = cursor.rowcount
-#     db.close()
-#
-#     if updated == 0:
-#         return {"message": f"Movie with id = {movie_id} not found"}
-#
-#     return {"message": f"Movie with id = {movie_id} updated successfully"}
 
 
 @app.delete("/movies/{movie_id}")
