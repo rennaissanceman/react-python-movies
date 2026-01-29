@@ -3,6 +3,9 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any
+from fastapi.responses import FileResponse, RedirectResponse, PlainTextResponse
+from pathlib import Path
+
 import sqlite3
 
 # =========================
@@ -87,9 +90,26 @@ def on_startup():
 # FRONTEND (React build)
 # =========================
 
+UI_INDEX = (Path(__file__).resolve().parent / "../ui/build/index.html").resolve()
+
 @app.get("/")
 def serve_react_app():
-    return FileResponse("../ui/build/index.html")
+    # Produkcja / po buildzie Reacta
+    if UI_INDEX.exists():
+        return FileResponse(str(UI_INDEX))
+
+    # DEV: nie ma builda, więc nie wywalaj 500
+    # Możesz też dać RedirectResponse("/docs") jeśli wolisz
+    return PlainTextResponse(
+        "UI build not found. Run React dev server at http://localhost:3000 "
+        "or create build: cd ../ui && npm run build",
+        status_code=200
+    )
+
+
+# @app.get("/")
+# def serve_react_app():
+#     return FileResponse("../ui/build/index.html")
 
 
 # =========================
