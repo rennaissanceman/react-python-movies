@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
+from fastapi import Response
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any
@@ -34,6 +35,10 @@ class ActorIn(BaseModel):
 # =========================
 
 app = FastAPI()
+
+@app.head("/")
+def head_root():
+    return Response(status_code=200)
 
 app.mount(
     "/static",
