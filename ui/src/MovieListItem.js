@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 
 export default function MovieListItem(props) {
   const movie = props.movie;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   const allActors = props.actors ?? [];
   const busy = !!props.busy;
 

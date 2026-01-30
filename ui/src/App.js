@@ -101,11 +101,17 @@ function App() {
                 body: JSON.stringify(payload),
             });
 
+
             if (!response.ok) {
-                const errText = await readErrorText(response);
-                console.error('POST /movies failed:', response.status, errText);
-                notifyError(`Nie udało się dodać filmu (HTTP ${response.status})`);
+                // const errText = await readErrorText(response);
+                // console.error('POST /movies failed:', response.status, errText);
+                // notifyError(`Nie udało się dodać filmu (HTTP ${response.status})`);
+                // return;
+                const msg = await readApiErrorMessage(response);
+                console.error("POST /movies failed:", response.status, msg);
+                notifyError(msg ? `Błąd: ${msg}` : `Nie udało się dodać filmu (HTTP ${response.status})`);
                 return;
+
             }
 
             notifySuccess("Film dodany");
@@ -149,10 +155,15 @@ function App() {
             });
 
             if (!response.ok) {
-                const errText = await readErrorText(response);
-                console.error('POST /actors failed:', response.status, errText);
-                notifyError(`Nie udało się dodać aktora (HTTP ${response.status})`);
+                // const errText = await readErrorText(response);
+                // console.error('POST /actors failed:', response.status, errText);
+                // notifyError(`Nie udało się dodać aktora (HTTP ${response.status})`);
+                // return;
+                const msg = await readApiErrorMessage(response);
+                console.error("POST /actors failed:", response.status, msg);
+                notifyError(msg ? `Błąd: ${msg}` : `Nie udało się dodać aktora (HTTP ${response.status})`);
                 return;
+
             }
 
             notifySuccess("Aktor dodany");
@@ -183,6 +194,32 @@ function App() {
             setBusy(false);
         }
     }
+
+    async function readApiErrorMessage(response) {
+        // 1) spróbuj JSON (FastAPI 422 ma zwykle { detail: [...] })
+        try {
+            const data = await response.json();
+
+            // typowy format FastAPI: detail: [{msg: "..."}]
+            if (Array.isArray(data?.detail) && data.detail.length > 0) {
+                const first = data.detail[0];
+                if (first?.msg) return first.msg;
+            }
+
+            // czasem backend zwraca {message: "..."}
+            if (typeof data?.message === "string") return data.message;
+
+            return JSON.stringify(data);
+        } catch {
+            // 2) fallback: text
+            try {
+                return await response.text();
+            } catch {
+                return "";
+            }
+        }
+    }
+
 
     // ===== ASSIGN / UNASSIGN =====
     async function handleAssignActor(movieId, actorId) {
@@ -233,10 +270,15 @@ function App() {
             });
 
             if (!response.ok) {
-                const errText = await readErrorText(response);
-                console.error("PUT /movies failed:", response.status, errText);
-                notifyError(`Nie udało się zaktualizować filmu (HTTP ${response.status})`);
+                // const errText = await readErrorText(response);
+                // console.error("PUT /movies failed:", response.status, errText);
+                // notifyError(`Nie udało się zaktualizować filmu (HTTP ${response.status})`);
+                // return;
+                const msg = await readApiErrorMessage(response);
+                console.error("PUT /movies failed:", response.status, msg);
+                notifyError(msg ? `Błąd: ${msg}` : `Nie udało się zaktualizować filmu (HTTP ${response.status})`);
                 return;
+
             }
 
             notifySuccess("Film zaktualizowany");
@@ -247,7 +289,7 @@ function App() {
     }
 
 
-    // ===== Search (bonus z listy slajdu) — opcjonalne, zostawiam bo małe i użyteczne =====
+    // ===== Search  =====
     const [query, setQuery] = useState("");
     const filteredMovies = movies.filter(m => {
         const q = query.trim().toLowerCase();

@@ -1,33 +1,128 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi import Response
-from fastapi.responses import FileResponse
-from pydantic import BaseModel
-from typing import Any
-from fastapi.responses import FileResponse, RedirectResponse, PlainTextResponse
+import sqlite3
 from pathlib import Path
 
-import sqlite3
+from fastapi import FastAPI, HTTPException
+from fastapi import Response
+from fastapi.responses import FileResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, validator
+
 
 # =========================
 # MODELE Pydantic
 # =========================
 
+# class Movie(BaseModel):
+#     title: str
+#     year: str
+#     description: str
+#     actors: str  # legacy string field (może być pusty)
+#
+# class MovieUpdate(BaseModel):
+#     title: str
+#     year: str
+#     description: str
+#     actors: str
+#
+# class ActorIn(BaseModel):
+#     name: str
+
+# =========================
+# MODELE Pydantic (walidacja)
+# =========================
+
 class Movie(BaseModel):
-    title: str
-    year: str
-    description: str
-    actors: str  # legacy string field (może być pusty)
+    title: str = Field(..., min_length=2, max_length=100, description="Movie title")
+    year: int = Field(..., ge=1888, le=2100, description="Production year")
+    description: str = Field("", max_length=2000, description="Movie description")
+    actors: str = Field("", max_length=255, description="Legacy field (may be empty)")
+
+    @validator("title")
+    def title_not_blank(cls, v: str):
+        v = v.strip()
+        if not v:
+            raise ValueError("Title cannot be empty")
+        return v
+
+    @validator("year", pre=True)
+    def year_to_int_and_validate(cls, v):
+        # accept "1999" or 1999
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                raise ValueError("Year is required")
+            if not v.isdigit():
+                raise ValueError("Year must be a number (e.g. 1999)")
+            v = int(v)
+
+        if not isinstance(v, int):
+            raise ValueError("Year must be an integer")
+
+        if v < 1888 or v > 2100:
+            raise ValueError("Year must be between 1888 and 2100")
+
+        return v
+
+    @validator("description")
+    def description_trim_and_limit(cls, v: str):
+        v = (v or "").strip()
+        # Field(max_length=...) i tak łapie długość, ale tu zostawiamy normalizację.
+        return v
+
+    @validator("actors")
+    def actors_trim(cls, v: str):
+        return (v or "").strip()
+
 
 class MovieUpdate(BaseModel):
-    title: str
-    year: str
-    description: str
-    actors: str
+    title: str = Field(..., min_length=2, max_length=100)
+    year: int = Field(..., ge=1888, le=2100)
+    description: str = Field("", max_length=2000)
+    actors: str = Field("", max_length=255)
+
+    @validator("title")
+    def title_not_blank(cls, v: str):
+        v = v.strip()
+        if not v:
+            raise ValueError("Title cannot be empty")
+        return v
+
+    @validator("year", pre=True)
+    def year_to_int_and_validate(cls, v):
+        if isinstance(v, str):
+            v = v.strip()
+            if not v:
+                raise ValueError("Year is required")
+            if not v.isdigit():
+                raise ValueError("Year must be a number (e.g. 1999)")
+            v = int(v)
+
+        if not isinstance(v, int):
+            raise ValueError("Year must be an integer")
+
+        if v < 1888 or v > 2100:
+            raise ValueError("Year must be between 1888 and 2100")
+
+        return v
+
+    @validator("description")
+    def description_trim_and_limit(cls, v: str):
+        return (v or "").strip()
+
+    @validator("actors")
+    def actors_trim(cls, v: str):
+        return (v or "").strip()
+
 
 class ActorIn(BaseModel):
-    name: str
+    name: str = Field(..., min_length=2, max_length=100, description="Actor name")
 
+    @validator("name")
+    def name_not_blank(cls, v: str):
+        v = v.strip()
+        if not v:
+            raise ValueError("Actor name cannot be empty")
+        return v
 
 
 # =========================

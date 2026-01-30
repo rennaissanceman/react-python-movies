@@ -1,6 +1,6 @@
 # 🎬 React Python Movies Fullstack App
 
-Fullstackowa aplikacja webowa do zarządzania filmami i aktorami  
+Prosta fullstackowa aplikacja webowa do zarządzania filmami i aktorami  
 (React + FastAPI + SQLite), wdrożona w chmurze za pomocą Dockera i Render
 
 ---
@@ -20,7 +20,7 @@ npm install
 npm start
 
 
-## 🚀 Live demo
+## 🚀 Link do aplikacji na Render.com
 
 👉 https://react-python-movies-1zhm.onrender.com
 
@@ -48,6 +48,23 @@ npm start
 - responsywny panel administracyjny
 
 ---
+
+## ✅ Walidacja danych
+
+Aplikacja posiada walidację danych zarówno po stronie backendu (FastAPI/Pydantic),
+jak i frontendową walidację formularzy (React), aby zapobiegać zapisywaniu błędnych danych.
+
+### Backend (FastAPI / Pydantic)
+- title: min 2, max 100, brak pustych/spacji
+- year: konwersja do int, format liczbowy, zakres 1888–2100
+- description: max 2000, trim
+- actor name: min 2, max 100, brak pustych/spacji
+- błędy walidacji zwracane jako HTTP 422
+
+### Frontend (React)
+- walidacja w MovieForm: tytuł, rok (4 cyfry + zakres), limit opisu
+- obsługa błędów 422 z backendu i prezentacja komunikatu w toast
+
 
 ## 🛠️ Technologie
 
